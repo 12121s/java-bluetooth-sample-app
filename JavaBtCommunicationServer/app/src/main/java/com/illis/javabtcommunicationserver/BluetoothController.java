@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -34,6 +35,15 @@ public class BluetoothController {
     private OutputStream mOutputStream;
     private BluetoothSocket mSocket;
     private BluetoothServerSocket tmp;
+
+    public static BluetoothController getInstance() {
+        LogUtil.d(".getInstance() called.");
+        if (mController == null) {
+            mController = new BluetoothController();
+        }
+
+        return mController;
+    }
 
     //블루투스 데이터 수신 Listener
     protected void beginListenForData() {
