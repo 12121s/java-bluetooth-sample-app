@@ -1,26 +1,21 @@
 package com.illis.javabtcommunicationserver;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
-import android.content.Context;
-import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
-import androidx.core.app.ActivityCompat;
-
 import com.illis.javabtcommunicationserver.util.LogUtil;
 import com.illis.javabtcommunicationserver.util.OrderOfObjectsAfterGCMain;
+import com.orhanobut.logger.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.UUID;
 
 public class BluetoothController {
@@ -28,16 +23,51 @@ public class BluetoothController {
 
     public BluetoothDevice mDevice;
     Thread mWorkerThread;
-    private int readBufferPositon;      //버퍼 내 수신 문자 저장 위치
-    private byte[] readBuffer;      //수신 버퍼
+    private int readBufferPosition;     //버퍼 내 수신 문자 저장 위치
+    private byte[] readBuffer;          //수신 버퍼
     private byte mDelimiter = 10;
     private InputStream mInputStream;
     private OutputStream mOutputStream;
     private BluetoothSocket mSocket;
     private BluetoothServerSocket tmp;
 
+    //handler는 thread에서 던지는 메세지를 보고 다음 동작을 수행시킨다.
+    private final Handler mHandler = new Handler(Looper.getMainLooper()) {
+        public void handleMessage(Message msg) {
+            if (msg.what == 1) // 연결 완료
+            {
+                Logger.d("BT 연결 성공");
+                try {
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Connect Success.. Socket", mSocket);
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Connect Success & Closed BluetoothServerSocket", tmp);
+
+                    //연결이 완료되면 소켓에서 outstream과 inputstream을 얻는다. 블루투스를 통해
+                    //데이터를 주고 받는 통로가 된다.
+                    mOutputStream = mSocket.getOutputStream();
+                    mInputStream = mSocket.getInputStream();
+
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Connect Success.. InputStream", mInputStream);
+
+                    beginListenForData();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else { //연결 실패
+                Logger.d("BT 연결 실패");
+                try {
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Before close BluetoothSocket", mSocket);
+                    if (mSocket != null) {
+                        mSocket.close();
+                    }
+                    LogUtil.logForCheckMemoryAddressAndHashCode("After close BluetoothSocket", mSocket);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    };
     public static BluetoothController getInstance() {
-        LogUtil.d(".getInstance() called.");
+        Logger.d(".getInstance() called.");
         if (mController == null) {
             mController = new BluetoothController();
         }
@@ -47,57 +77,49 @@ public class BluetoothController {
 
     //블루투스 데이터 수신 Listener
     protected void beginListenForData() {
+        Logger.d("beginListenForData called ");
         final Handler handler = new Handler();
-        readBuffer = new byte[1024];  //  수신 버퍼
-        readBufferPositon = 0;        //   버퍼 내 수신 문자 저장 위치
-        LogUtil.d("beginListenForData called ");
+        readBuffer = new byte[1024];  // 수신 버퍼
+        readBufferPosition = 0;       // 버퍼 내 수신 문자 저장 위치
         // 문자열 수신 쓰레드
         mWorkerThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                LogUtil.d("workthread run");
                 while ((mSocket != null && mSocket.isConnected())) {
                     try {
+                        Logger.d("Current work thread is : " + Thread.currentThread().getName());
                         if (mInputStream != null && (mSocket != null && mSocket.isConnected())) {
                             int bytesAvailable = mInputStream.available();
                             if (bytesAvailable > 0) { //데이터가 수신된 경우
-                                LogUtil.d("[17] current work thread name: " + Thread.currentThread().getName() + " & hashcode: " + Thread.currentThread().hashCode());
-
-
-                                OrderOfObjectsAfterGCMain.printAddresses("[25] (close 이후..) 리모콘 앱 연결중 server socket =", tmp);
-
-                                LogUtil.d("[18] beginListenForData mInputStream = " + mInputStream);
-                                LogUtil.d("[19] beginListenForData mInputStream hashcode = " + mInputStream.hashCode());
-
-                                OrderOfObjectsAfterGCMain.printAddresses("[26] 리모콘 앱 연결중 bt socket = ", mSocket);
-                                OrderOfObjectsAfterGCMain.printAddresses("[27] 리모콘 앱 연결중 inputstream = ", mInputStream);
+                                LogUtil.logForCheckMemoryAddressAndHashCode("Connecting.. InputStream ", mInputStream);
+                                LogUtil.logForCheckMemoryAddressAndHashCode("Connecting.. Socket", mSocket);
+                                LogUtil.logForCheckMemoryAddressAndHashCode("Connecting.. BluetoothSererSocket tmp", tmp);
 
                                 byte[] packetBytes = new byte[bytesAvailable];
                                 mInputStream.read(packetBytes);
                                 for (int i = 0; i < bytesAvailable; i++) {
                                     byte b = packetBytes[i];
                                     if (b == mDelimiter) {
-                                        byte[] encodedBytes = new byte[readBufferPositon];
+                                        byte[] encodedBytes = new byte[readBufferPosition];
                                         System.arraycopy(readBuffer, 0, encodedBytes, 0, encodedBytes.length);
                                         final String data = new String(encodedBytes, "UTF-8");
-                                        readBufferPositon = 0;
+                                        readBufferPosition = 0;
                                         handler.post(new Runnable() {
                                             public void run() {
-                                                //수신된 데이터는 data 변수에 string으로 저장!! 이 데이터를 이용하면 된다.
-                                                LogUtil.d("beginListenForData = " + data.toString());
+                                                //수신된 데이터
+                                                Logger.d("Read data = " + data.toString());
                                             }
                                         });
                                     } else {
-                                        readBuffer[readBufferPositon++] = b;
+                                        readBuffer[readBufferPosition++] = b;
                                     }
                                 }
                             }
                         } else {
-                            LogUtil.d("[20] inputstream is null");
+                            Logger.d("InputStream is null & Bluetooth disconnected");
                             disconnectBt();
                             mWorkerThread.interrupt();
                         }
-
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -109,153 +131,69 @@ public class BluetoothController {
         mWorkerThread.start();
     }
 
-    //handler는 thread에서 던지는 메세지를 보고 다음 동작을 수행시킨다.
-    final Handler mHandler = new Handler(Looper.getMainLooper()) {
-        public void handleMessage(Message msg) {
-            if (msg.what == 1) // 연결 완료
-            {
-                LogUtil.d("BT 연결 성공");
-                try {
-                    OrderOfObjectsAfterGCMain.printAddresses("[23] server socket close 후?", tmp);
-
-                    LogUtil.d("WaitToSelectedDevice mSocket = " + mSocket);
-                    LogUtil.d("WaitToSelectedDevice mSocket hashcode = " + mSocket.hashCode());
-
-                    OrderOfObjectsAfterGCMain.printAddresses("[24] bluetooth socket 연결 완료", mSocket);
-
-                    //연결이 완료되면 소켓에서 outstream과 inputstream을 얻는다. 블루투스를 통해
-                    //데이터를 주고 받는 통로가 된다.
-                    mOutputStream = mSocket.getOutputStream();
-                    mInputStream = mSocket.getInputStream();
-
-                    LogUtil.d("WaitToSelectedDevice mInputStream = " + mInputStream);
-                    LogUtil.d("WaitToSelectedDevice mInputStream hashcode = " + mInputStream.hashCode());
-
-                    beginListenForData();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            } else {    //연결 실패
-                LogUtil.d("BT 연결 실패");
-                try {
-                    OrderOfObjectsAfterGCMain.printAddresses("bluetooth socket close 전", mSocket);
-
-                    if (mSocket != null)
-                        mSocket.close();
-
-                    OrderOfObjectsAfterGCMain.printAddresses("bluetooth socket close 후", mSocket);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    };
 
     public void WaitToSelectedDevice() {
+        Logger.d("WaitToSelectedDevice called ");
         //연결과정을 수행할 thread 생성
+        // RFCOMM 채널을 통한 연결, socket에 connect하는데 시간이 걸린다. 따라서 ui에 영향을 주지 않기 위해서는
+        // Thread로 연결 과정을 수행해야 한다.
         Thread thread = new Thread(new Runnable() {
             @SuppressLint("MissingPermission")
             public void run() {
-                LogUtil.d("[0] current thread name: " + Thread.currentThread().getName() + " & hashcode: " + Thread.currentThread().hashCode());
+                Logger.d("Current work thread is : " + Thread.currentThread().getName());
 
                 //선택된 기기의 이름을 갖는 bluetooth device의 object
                 UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
-//                UUID uuid = UUID.fromString("00000000-0000-1000-8000-00805f9b34fb");
-                LogUtil.d("[1] WaitToSelectedDevice =" + mDevice.getBondState());
-/*
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1) {
-                    for (ParcelUuid check_uuid : mDevice.getUuids())
-                        LogUtil.d("device uuid: " + check_uuid);
-                }
-*/
-                try {
-                    LogUtil.d("[2] WaitToSelectedDevice bluetooth server socket connect 시작");
+                Logger.d("Device bonded state =" + mDevice.getBondState());
 
+                try {
                     // 소켓 생성
                     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                    Logger.d("Bluetooth adapter = " + adapter);
+                    Logger.d("BluetoothDevice address = " + mDevice.getAddress());
 
-                    LogUtil.d("[3] WaitToSelectedDevice bluetooth adapter = " + adapter);
-                    LogUtil.d("[4] WaitToSelectedDevice bluetooth address = " + mDevice.getAddress());
-
-                    LogUtil.d("[5_0] null일 때만 할당하자 = " + tmp);
-
-                    OrderOfObjectsAfterGCMain.printAddresses("server socket listen 전", tmp);
-
-                    LogUtil.d("[5_1] WaitToSelectedDevice bluetooth server socket 할당");
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Before Create BluetoothSererSocket tmp", tmp);
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Before Create Socket", mSocket);
                     tmp = adapter.listenUsingRfcommWithServiceRecord(mDevice.getAddress(), uuid);
 
-                    String test = "test";
-                    String adb = test;
-                    OrderOfObjectsAfterGCMain.printAddresses(test);
-                    LogUtil.d("[5_2] test = " + test);
-                    LogUtil.d("[6] test hashcode = " + test.hashCode());
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Listen Device Address BluetoothSererSocket tmp", tmp);
+                    LogUtil.logForCheckMemoryAddressAndHashCode("Listen Device Address Socket", mSocket);
 
-                    OrderOfObjectsAfterGCMain.printAddresses(adb);
-                    LogUtil.d("[5_2] adb = " + adb);
-                    LogUtil.d("[6] adb hashcode = " + adb.hashCode());
-
-                    adb = "adb";
-                    LogUtil.d("[5_2] test = " + test);
-                    LogUtil.d("[6] test hashcode = " + test.hashCode());
-                    LogUtil.d("[5_2] adb = " + adb);
-                    LogUtil.d("[6] adb hashcode = " + adb.hashCode());
-
-                    OrderOfObjectsAfterGCMain.printAddresses(test, tmp);
-                    System.out.println(test);
-                    LogUtil.d("[5_2] WaitToSelectedDevice bluetooth server socket = " + tmp);
-                    LogUtil.d("[6] WaitToSelectedDevice bluetooth server socket hashcode = " + tmp.hashCode());
-
-                    OrderOfObjectsAfterGCMain.printAddresses("server socket listen 후 bt socket: ", mSocket);
                     mSocket = tmp.accept(3000);
-                    // RFCOMM 채널을 통한 연결, socket에 connect하는데 시간이 걸린다. 따라서 ui에 영향을 주지 않기 위해서는
-                    // Thread로 연결 과정을 수행해야 한다.
 
-                    OrderOfObjectsAfterGCMain.printAddresses("server socket accept 후", tmp);
-                    OrderOfObjectsAfterGCMain.printAddresses("server socket accept 후 bt socket", mSocket);
+                    LogUtil.logForCheckMemoryAddressAndHashCode("After accept BluetoothSererSocket tmp", tmp);
+                    LogUtil.logForCheckMemoryAddressAndHashCode("After accept Socket", mSocket);
+
                     if(mSocket != null) {
-                        OrderOfObjectsAfterGCMain.printAddresses("bluetooth socket accept 성공", mSocket);
-                        LogUtil.d("[7] WaitToSelectedDevice mSocket = " + mSocket);
-                        LogUtil.d("[8] WaitToSelectedDevice mSocket hashcode = " + mSocket.hashCode());
+                        Logger.d("bluetooth socket accept 성공");
                         mHandler.sendEmptyMessage(1);
                     } else
-                        LogUtil.e("[9] WaitToSelectedDevice = mSocket is null");
-                } catch (IOException e) {
-                    LogUtil.e("[10] WaitToSelectedDevice =" +  e.getLocalizedMessage());
-                    // 블루투스 연결 중 오류 발생
-                    mHandler.sendEmptyMessage(-1);
+                        Logger.e("bluetooth socket accept 실패 : mSocket is null");
                 } catch (Exception e) {
-                    LogUtil.e("[11] WaitToSelectedDevice =" +  e.getLocalizedMessage());
                     // 블루투스 연결 중 오류 발생
+                    Logger.e("error occurred: "+ e.getLocalizedMessage());
                     mHandler.sendEmptyMessage(-1);
                 } finally {
-                    LogUtil.d("finally");
-                }
-
-                try {
-                    LogUtil.d("[12] close bluetooth server socket = " + tmp);
-                    if (tmp != null) {
-                        LogUtil.d("[13] close bluetooth server socket hashcode = " + tmp.hashCode());
-
-                        OrderOfObjectsAfterGCMain.printAddresses("[14] server socket close 전", tmp);
-
-                        tmp.close();
-
-                        OrderOfObjectsAfterGCMain.printAddresses("[15] server socket close 후", tmp);
+                    Logger.d("finally");
+                    try {
+                        Logger.d("try close bluetoothServerSocket");
+                        if (tmp != null) {
+                            LogUtil.logForCheckMemoryAddressAndHashCode("Before BluetoothServerSocket tmp close", tmp);
+                            LogUtil.logForCheckMemoryAddressAndHashCode("Before BluetoothServerSocket tmp close mSocket", mSocket);
+                            tmp.close();
+                            LogUtil.logForCheckMemoryAddressAndHashCode("After BluetoothServerSocket tmp close", tmp);
+                            LogUtil.logForCheckMemoryAddressAndHashCode("After BluetoothServerSocket tmp close mSocket", mSocket);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
         });
 
-        thread.setUncaughtExceptionHandler(
-                new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        LogUtil.e("[16] [Thread " + t + "]UncaughtException: " + e.getLocalizedMessage());
-                    }
-                }
-        );
+        thread.setUncaughtExceptionHandler((t, e) -> {
+            Logger.e("[16] [Thread " + t + "]UncaughtException: " + e.getLocalizedMessage());
+        });
 
         //연결 thread를 수행한다
         thread.start();
@@ -263,19 +201,24 @@ public class BluetoothController {
 
     public void disconnectBt() {
         try {
-            LogUtil.d("disconnectBluetooth");
+            Logger.d("try close BluetoothSocket");
+
+            LogUtil.logForCheckMemoryAddressAndHashCode("Before BluetoothSocket close tmp", tmp);
+            LogUtil.logForCheckMemoryAddressAndHashCode("Before BluetoothSocket close mSocket", mSocket);
             if (mSocket != null) {
-                LogUtil.d("mSocket close");
+                Logger.d("mSocket close");
                 mSocket.close();
             }
             if (mInputStream != null) {
-                LogUtil.d("mInputStream close");
+                Logger.d("mInputStream close");
                 mInputStream.close();
             }
             if (mOutputStream != null) {
-                LogUtil.d("mOutputStream close");
+                Logger.d("mOutputStream close");
                 mOutputStream.close();
             }
+            LogUtil.logForCheckMemoryAddressAndHashCode("After BluetoothSocket close tmp", tmp);
+            LogUtil.logForCheckMemoryAddressAndHashCode("After BluetoothSocket close mSocket", mSocket);
         } catch (IOException e) {
             e.printStackTrace();
         }
