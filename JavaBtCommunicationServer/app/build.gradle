@@ -25,6 +25,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    buildFeatures {
+        dataBinding true
+    }
 }
 
 dependencies {
@@ -34,7 +38,8 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     /* custom */
-    implementation 'com.implimentz:unsafe:0.0.6'
+    implementation 'com.implimentz:unsafe:0.0.6' // for raw memory access
+    implementation 'com.orhanobut:logger:2.2.0'  // for logging
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 public class OrderOfObjectsAfterGCMain {
+    /* raw memory에 access하고 포인터 수준의 연산을 지원하는 sun.misc.Unsafe 클래스를 안드로이드에서 사용할 수 있도록 구현한 클래스 */
     static final UnsafeAndroid unsafe = new UnsafeAndroid();
     static final boolean is64bit = true; // auto detect if possible.
 
@@ -39,11 +40,6 @@ public class OrderOfObjectsAfterGCMain {
         printAddresses("ascending", ascending);
         printAddresses("descending", descending);
         printAddresses("shuffled", shuffled);
-    }
-
-    public static void testAddresses(String label) {
-        label = label + "test";
-        System.out.println(label);
     }
 
     public static void printAddresses(String label, Object... objects) {
