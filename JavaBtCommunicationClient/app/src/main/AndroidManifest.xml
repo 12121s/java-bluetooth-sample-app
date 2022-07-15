@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.illis.javabtcommunicationclient">
 
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <application
+        android:name=".BluetoothClientApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
