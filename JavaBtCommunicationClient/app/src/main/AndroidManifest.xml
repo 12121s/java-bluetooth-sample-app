@@ -11,6 +11,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.JavaBtCommunicationClient">
+        <receiver android:name=".BluetoothScanmodeReceiver" android:exported="false" />
+        <receiver android:name=".BluetoothSearchReceiver" android:exported="false" />
+        <receiver android:name=".BluetoothStateReceiver" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
