@@ -2,7 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.illis.javabtcommunicationserver">
 
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:name=".BluetoothServerApplication"
         android:allowBackup="true"
@@ -11,7 +15,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.JavaBtCommunicationServer">
-        <receiver android:name=".BluetoothReceiver"
+        <receiver android:name=".receiver.BluetoothStateReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.BOND_STATE_CHANGED" />
