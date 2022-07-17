@@ -2,7 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.illis.javabtcommunicationclient">
 
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:name=".BluetoothClientApplication"
         android:allowBackup="true"
@@ -11,9 +17,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.JavaBtCommunicationClient">
-        <receiver android:name=".BluetoothScanmodeReceiver" android:exported="false" />
-        <receiver android:name=".BluetoothSearchReceiver" android:exported="false" />
-        <receiver android:name=".BluetoothStateReceiver" android:exported="false" />
+        <receiver android:name=".receiver.BluetoothScanmodeReceiver" android:exported="false" />
+        <receiver android:name=".receiver.BluetoothSearchReceiver" android:exported="false" />
+        <receiver android:name=".receiver.BluetoothStateReceiver" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
