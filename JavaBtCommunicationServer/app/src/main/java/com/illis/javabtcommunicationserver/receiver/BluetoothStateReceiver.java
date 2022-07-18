@@ -40,7 +40,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
             mBtController.mDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             Logger.d("ACTION_BOND_STATE_CHANGED =" + mBtController.mDevice.getBondState());
 
-            if (mBtController.mDevice.getBondState() == BluetoothDevice.BOND_NONE)
+            if (mBtController.mDevice.getBondState() == BluetoothDevice.BOND_BONDED)
                 mBtController.disconnectBt();
         }
     }
